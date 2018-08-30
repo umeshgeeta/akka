@@ -177,7 +177,7 @@ public class Participant extends AbstractActorWithTimers {
 		if (participants != null && !participants.isEmpty()) {
 			for (ActorRef p : participants) {
 				if (p.compareTo(getSelf()) != 0) {
-					p.tell(req, getSender());
+					p.tell(req, getSelf());
 				}
 				// else skip messages to self
 			}
@@ -186,15 +186,17 @@ public class Participant extends AbstractActorWithTimers {
 
 	@Override
 	public Receive createReceive() {
+		ActorRef ar = getSender();
 		return receiveBuilder().match(Protocol.PrepareRequest.class, prepReq -> {
-			log.info("Received prepare request by " + this);
+			log.info("Received prepare request "+ prepReq + " by " + this);
 			Protocol.PrepareResponse resp = respond(prepReq);
 			if (resp != null) {
+				ActorRef arr = getSender();
 				getSender().tell(resp, getSelf());
 			}
 			// else we do nothing
 		}).match(Protocol.AcceptRequest.class, accpReq -> {
-			log.info("Received accept request by " + this);
+			log.info("Received accept request " + accpReq + " by " + this);
 			Protocol.AcceptResponse resp = respond(accpReq, getSender());
 			if (resp != null) {
 				getSender().tell(resp, getSelf());

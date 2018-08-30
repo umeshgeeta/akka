@@ -16,6 +16,10 @@ public class Protocol {
 		public Request(int pn) {
 			proposalNumber = pn;
 		}
+		
+		public String toString()  {
+			return " Proposal  Number" + this.proposalNumber;
+		}
 	}
 	
 	public static class PrepareRequest extends Request {
@@ -45,6 +49,10 @@ public class Protocol {
 		public AcceptRequest(int pn, int val) {
 			super(pn);
 			proposalValue = val;
+		}
+		
+		public String toString()  {
+			return super.toString() + " Proposal  Value" + this.proposalValue;
 		}
 		
 	}

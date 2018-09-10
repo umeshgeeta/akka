@@ -23,8 +23,8 @@ public class Participant extends AbstractActorWithTimers {
 
 	private LoggingAdapter log = Logging.getLogger(getContext().getSystem(), this);
 
-	static public Props props(int pCount) {
-		return Props.create(Participant.class, () -> new Participant(pCount));
+	static public Props props(int pCount, String name) {
+		return Props.create(Participant.class, () -> new Participant(pCount, name));
 	}
 
 	private static class ProposalNumberGenerator {
@@ -104,7 +104,8 @@ public class Participant extends AbstractActorWithTimers {
 			acceptResponsesReceived++;
 			// when acceptResponsesReceived == number of participants; consensus is reached
 			if (acceptResponsesReceived == participantCount) {
-				System.out.println("Consensus reached");
+				System.out.println("Consensus reached for proposal from " + parent + "  highestProposalNoOfResponsesReceived: "  + 
+							highestProposalNoOfResponsesReceived + " valueOfHighestProposalReceived: " + valueOfHighestProposalReceived);
 				PaxosMain.consensusReached();
 			}
 		}
@@ -127,6 +128,7 @@ public class Participant extends AbstractActorWithTimers {
 
 	}
 
+	private String name;
 	private CirculatedProposal propCirculated;
 	private RespondedProposal propResponded;
 
@@ -142,12 +144,17 @@ public class Participant extends AbstractActorWithTimers {
 	 * @param pc
 	 *            Participant count
 	 */
-	public Participant(int pc) {
+	public Participant(int pc, String n) {
 		propResponded = new RespondedProposal();
 		propCirculated = new CirculatedProposal(new ProposalNumberGenerator(propResponded), pc, this);
 		Random r = new Random();
 		getTimers().startSingleTimer(TICK_KEY, new FirstTick(), Duration.ofMillis(((1+r.nextInt(9)) * 100)));
+		this.name = n;
 		log.info("Created " +  this);
+	}
+	
+	public String toString() {
+		return name;
 	}
 
 	private Protocol.PrepareResponse respond(Protocol.PrepareRequest prepReq) {
@@ -202,10 +209,10 @@ public class Participant extends AbstractActorWithTimers {
 				getSender().tell(resp, getSelf());
 			}
 			// else we do nothing
-		}).match(Protocol.PrepareResponse.class, prepReq -> {
+		}).match(Protocol.PrepareResponse.class, prepResp -> {
 			log.info("Received prepare response by " + this);
-			propCirculated.trackPrepareResponse(prepReq.lastAcceptedProposal, prepReq.lastAcceptedProposalValue);
-		}).match(Protocol.AcceptResponse.class, accpReq -> {
+			propCirculated.trackPrepareResponse(prepResp.lastAcceptedProposal, prepResp.lastAcceptedProposalValue);
+		}).match(Protocol.AcceptResponse.class, accpResp -> {
 			log.info("Received accept response by " + this);
 			propCirculated.trackAcceptResponse();
 		}).match(FirstTick.class, message -> {

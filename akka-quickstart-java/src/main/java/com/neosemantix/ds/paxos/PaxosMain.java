@@ -25,7 +25,7 @@ public class PaxosMain {
 		final ActorSystem system = ActorSystem.create("Paxos");
 		participants = new ArrayList<ActorRef>();
 		for (int i=0; i<numParticipants; i++) {
-			participants.add(system.actorOf(Participant.props(numParticipants), "Participant_" + i));
+			participants.add(system.actorOf(Participant.props(numParticipants, "Participant_" + i)));
 		}
 	}
 	

@@ -18,7 +18,7 @@ public class Protocol {
 		}
 		
 		public String toString()  {
-			return " Proposal  Number" + this.proposalNumber;
+			return " PN=" + this.proposalNumber;
 		}
 	}
 	
@@ -26,6 +26,10 @@ public class Protocol {
 		
 		public PrepareRequest(int pn) {
 			super(pn);
+		}
+		
+		public String toString() {
+			return "PrepareRequest " + super.toString();
 		}
 		
 	}
@@ -40,6 +44,10 @@ public class Protocol {
 			lastAcceptedProposalValue = v;
 		}
 		
+		public String toString() {
+			return "PrepareResponse " + "LA_PN=" + lastAcceptedProposal + " LA_PV=" + lastAcceptedProposalValue;
+		}
+		
 	}
 	
 	public static class AcceptRequest extends Request {
@@ -52,7 +60,7 @@ public class Protocol {
 		}
 		
 		public String toString()  {
-			return super.toString() + " Proposal  Value" + this.proposalValue;
+			return "AcceptRequest " + super.toString() + " PV=" + this.proposalValue;
 		}
 		
 	}
@@ -61,6 +69,10 @@ public class Protocol {
 		
 		public AcceptResponse() {
 			// basically consent for the accept request
+		}
+		
+		public String toString() {
+			return "AcceptResponse";
 		}
 		
 	}

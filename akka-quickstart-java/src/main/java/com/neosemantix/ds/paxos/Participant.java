@@ -19,7 +19,9 @@ import akka.event.LoggingAdapter;
  *
  */
 public class Participant extends AbstractActorWithTimers {
-	// AbstractActor {
+
+	private static int NO_PROPOSAL_ACCEPTED_YET = -1;
+	private static int PROPOSAL_VALUE_NOT_APPLICABLE = -1;
 
 	private LoggingAdapter log = Logging.getLogger(getContext().getSystem(), this);
 
@@ -52,11 +54,13 @@ public class Participant extends AbstractActorWithTimers {
 		private int highestProposalNoOfResponsesReceived;
 		private int valueOfHighestProposalReceived;
 		private Participant parent;
+		private long birthdate;
 
-		private CirculatedProposal(ProposalNumberGenerator propNumGen, int pc, Participant p) {
+		private CirculatedProposal(ProposalNumberGenerator propNumGen, int pc, Participant p, long bd) {
 			propNumGenarator = propNumGen;
 			participantCount = pc;
 			parent = p;
+			birthdate = bd;
 		}
 
 		private int circulateNewPrepareProposal(Participant issuer) {
@@ -86,13 +90,27 @@ public class Participant extends AbstractActorWithTimers {
 
 		private boolean majority(int arg) {
 			boolean result = false;
-			if (arg >= ((participantCount / 2) + 1)) {
+			switch (participantCount) {
+			case 0:
+			case 1:
 				result = true;
+				break;
+			case 2:
+				if (arg == 1)
+					result = true;
+				break;
+			default:
+				if (arg >= (participantCount / 2)) {
+					result = true;
+				}
 			}
 			return result;
 		}
 
 		private void circulateAcceptProposal(Participant issuer) {
+			if (valueOfHighestProposalReceived == 0) {
+				valueOfHighestProposalReceived  = 5;
+			}
 			Protocol.AcceptRequest acptReq = new Protocol.AcceptRequest(issuedPrepareRequestNumber,
 					valueOfHighestProposalReceived);
 			acceptResponsesReceived = 0;
@@ -103,9 +121,12 @@ public class Participant extends AbstractActorWithTimers {
 		private synchronized void trackAcceptResponse() {
 			acceptResponsesReceived++;
 			// when acceptResponsesReceived == number of participants; consensus is reached
-			if (acceptResponsesReceived == participantCount) {
-				System.out.println("Consensus reached for proposal from " + parent + "  highestProposalNoOfResponsesReceived: "  + 
+			// participantCount - 1 because we skip message to self
+			if (acceptResponsesReceived == (participantCount - 1)) {
+				System.out.println("==========================================================");
+				System.out.println("Consensus reached in "+ (System.currentTimeMillis() - birthdate)  + " milliseonds for proposal from " + parent + "  highestProposalNoOfResponsesReceived: "  + 
 							highestProposalNoOfResponsesReceived + " valueOfHighestProposalReceived: " + valueOfHighestProposalReceived);
+				System.out.println("==========================================================");
 				PaxosMain.consensusReached();
 			}
 		}
@@ -123,7 +144,9 @@ public class Participant extends AbstractActorWithTimers {
 		// private ActorRef proposer;
 
 		private RespondedProposal() {
-
+			acceptedProposalNumber = NO_PROPOSAL_ACCEPTED_YET;
+			acceptedProposalValue = PROPOSAL_VALUE_NOT_APPLICABLE;
+			propNumOfLastPrepReqResd = NO_PROPOSAL_ACCEPTED_YET;
 		}
 
 	}
@@ -131,6 +154,7 @@ public class Participant extends AbstractActorWithTimers {
 	private String name;
 	private CirculatedProposal propCirculated;
 	private RespondedProposal propResponded;
+	private Random random;
 
 	private static Object TICK_KEY = "TickKey";
 
@@ -146,15 +170,23 @@ public class Participant extends AbstractActorWithTimers {
 	 */
 	public Participant(int pc, String n) {
 		propResponded = new RespondedProposal();
-		propCirculated = new CirculatedProposal(new ProposalNumberGenerator(propResponded), pc, this);
-		Random r = new Random();
-		getTimers().startSingleTimer(TICK_KEY, new FirstTick(), Duration.ofMillis(((1+r.nextInt(9)) * 100)));
+		propCirculated = new CirculatedProposal(new ProposalNumberGenerator(propResponded), pc, this, System.currentTimeMillis());
+		random = new Random();
+		getTimers().startSingleTimer(TICK_KEY, new FirstTick(), Duration.ofMillis(((1+random.nextInt(9)) * 100)));
 		this.name = n;
-		log.info("Created " +  this);
+		log.info("Created " +  this + " with ActorRef as " + this.getSelf());
 	}
 	
 	public String toString() {
 		return name;
+	}
+	
+	private long prepReqResponseDelay() {
+		int i = random.nextInt(11);
+		if (i == 0) {
+			i++;
+		}
+		return i * 100;
 	}
 
 	private Protocol.PrepareResponse respond(Protocol.PrepareRequest prepReq) {
@@ -165,6 +197,18 @@ public class Participant extends AbstractActorWithTimers {
 			propResponded.propNumOfLastPrepReqResd = prepReq.proposalNumber;
 		}
 		// else we ignore
+		
+		// artificial delay
+		Object globalC = PaxosMain.getGlocalCommon();
+		synchronized (globalC) {
+			try {
+				globalC.wait(prepReqResponseDelay());
+			} catch (InterruptedException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+		}
+		
 		return response;
 	}
 
@@ -195,25 +239,24 @@ public class Participant extends AbstractActorWithTimers {
 	public Receive createReceive() {
 		ActorRef ar = getSender();
 		return receiveBuilder().match(Protocol.PrepareRequest.class, prepReq -> {
-			log.info("Received prepare request "+ prepReq + " by " + this);
+			log.info("Received "+ prepReq + " by " + this + " from " + getSender());
 			Protocol.PrepareResponse resp = respond(prepReq);
 			if (resp != null) {
-				ActorRef arr = getSender();
 				getSender().tell(resp, getSelf());
 			}
 			// else we do nothing
 		}).match(Protocol.AcceptRequest.class, accpReq -> {
-			log.info("Received accept request " + accpReq + " by " + this);
+			log.info("Received " + accpReq + " by " + this + " from " + getSender());
 			Protocol.AcceptResponse resp = respond(accpReq, getSender());
 			if (resp != null) {
 				getSender().tell(resp, getSelf());
 			}
 			// else we do nothing
 		}).match(Protocol.PrepareResponse.class, prepResp -> {
-			log.info("Received prepare response by " + this);
+			log.info(">->->- Received " + prepResp + " by " + this + " from " + getSender());
 			propCirculated.trackPrepareResponse(prepResp.lastAcceptedProposal, prepResp.lastAcceptedProposalValue);
 		}).match(Protocol.AcceptResponse.class, accpResp -> {
-			log.info("Received accept response by " + this);
+			log.info(">>->>- Received " + accpResp + " by "  + this + " from " + getSender());
 			propCirculated.trackAcceptResponse();
 		}).match(FirstTick.class, message -> {
 			log.info("Circulating prepare request by " + this);

@@ -15,18 +15,26 @@ import akka.actor.ActorSystem;
  */
 public class PaxosMain {
 	
-	private static int numParticipants = 7;
+	private static int numParticipants = 3;
 	private static List<ActorRef> participants;
+	
+	private static Object gc;
 
 	/**
 	 * @param args
 	 */
 	public static void main(String[] args) {
+		gc = new Object();
 		final ActorSystem system = ActorSystem.create("Paxos");
 		participants = new ArrayList<ActorRef>();
 		for (int i=0; i<numParticipants; i++) {
 			participants.add(system.actorOf(Participant.props(numParticipants, "Participant_" + i)));
+			
 		}
+	}
+	
+	public static Object getGlocalCommon() {
+		return gc;
 	}
 	
 	public static List<ActorRef> getParticipants() {

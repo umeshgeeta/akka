@@ -55,6 +55,7 @@ public class Participant extends AbstractActorWithTimers {
 		private int valueOfHighestProposalReceived;
 		private Participant parent;
 		private long birthdate;
+		private boolean acceptReqAlreadySent;		
 
 		private CirculatedProposal(ProposalNumberGenerator propNumGen, int pc, Participant p, long bd) {
 			propNumGenarator = propNumGen;
@@ -69,6 +70,7 @@ public class Participant extends AbstractActorWithTimers {
 			highestProposalNoOfResponsesReceived = 0;
 			valueOfHighestProposalReceived = 0;
 			issuedPrepareRequestNumber = propNumGenarator.getNextProposalNumber();
+			acceptReqAlreadySent = false;	//reset
 			Protocol.PrepareRequest prepReq = new Protocol.PrepareRequest(issuedPrepareRequestNumber);
 			issuer.issueRequests(prepReq);
 			return issuedPrepareRequestNumber;
@@ -83,11 +85,38 @@ public class Participant extends AbstractActorWithTimers {
 			if (majority(preparResponsesReceived)) {
 				// we got majorities responding to the prepare proposal
 				// circulate the accept proposal now
-				circulateAcceptProposal(parent);
+				if (!acceptReqAlreadySent) {
+					// we have not issued accept request so far
+					circulateAcceptProposal(parent);
+					acceptReqAlreadySent = true;	// no more additional
+				}
+				// else already accept request is in circulation...
+				// What happens is we get responses from majority participants for prepare request 
+				// and this this participant starts issuing the accept request. However, responses
+				// for the earlier prepare request still keeps on coming from participants beyond
+				// the majority. At that point we do not want to issue additional acceptance request
+				// since one is already in circulation for this prepare request. Point is we do
+				// not for the accept request to get responses to prepare request from all 
+				// participants. But beyond what prepare responses are received, need not cause
+				// additional accept request.
 			}
 			// else will have to wait for more responses
 		}
 
+		/**
+		 * For 0 and 1 participant count, it is always majority. These are just pathological corner cases.
+		 * For participant count 2, majority is attained any time a participant hears from the other.
+		 * 
+		 * For odd count of participants, say 3, 3 / 2 = 1 (integer division); getting response from one
+		 * single participant is enough since the 'self' is already counted. For 5, 5 / 2 = 2; receiving 
+		 * from 2 other plus 'self' is the majority.
+		 * 
+		 * For even count, say 4, 4 / 2 = 2; getting responses from 2 other participants is enough 
+		 * because 'self' takes it over the half count.
+		 * 
+		 * @param arg
+		 * @return boolean
+		 */
 		private boolean majority(int arg) {
 			boolean result = false;
 			switch (participantCount) {
@@ -122,7 +151,7 @@ public class Participant extends AbstractActorWithTimers {
 			acceptResponsesReceived++;
 			// when acceptResponsesReceived == number of participants; consensus is reached
 			// participantCount - 1 because we skip message to self
-			if (acceptResponsesReceived == (participantCount - 1)) {
+			if (acceptResponsesReceived == (participantCount - 1)) {				
 				System.out.println("==========================================================");
 				System.out.println("Consensus reached in "+ (System.currentTimeMillis() - birthdate)  + " milliseonds for proposal from " + parent + "  highestProposalNoOfResponsesReceived: "  + 
 							highestProposalNoOfResponsesReceived + " valueOfHighestProposalReceived: " + valueOfHighestProposalReceived);
@@ -239,14 +268,14 @@ public class Participant extends AbstractActorWithTimers {
 	public Receive createReceive() {
 		ActorRef ar = getSender();
 		return receiveBuilder().match(Protocol.PrepareRequest.class, prepReq -> {
-			log.info("Received "+ prepReq + " by " + this + " from " + getSender());
+			log.info("       Received "+ prepReq + " by " + this + " from " + getSender());
 			Protocol.PrepareResponse resp = respond(prepReq);
 			if (resp != null) {
 				getSender().tell(resp, getSelf());
 			}
 			// else we do nothing
 		}).match(Protocol.AcceptRequest.class, accpReq -> {
-			log.info("Received " + accpReq + " by " + this + " from " + getSender());
+			log.info("       Received " + accpReq + " by " + this + " from " + getSender());
 			Protocol.AcceptResponse resp = respond(accpReq, getSender());
 			if (resp != null) {
 				getSender().tell(resp, getSelf());
@@ -265,8 +294,8 @@ public class Participant extends AbstractActorWithTimers {
 			getTimers().startPeriodicTimer(TICK_KEY, new Tick(), Duration.ofSeconds(1));
 		}).match(Tick.class, message -> {
 			log.debug("Circulating prepare request by " + this);
-			// do something useful here
-			propCirculated.circulateNewPrepareProposal(this);
+			// do something useful here - hold on for now from initiating multiple proposals by the same participant
+			//propCirculated.circulateNewPrepareProposal(this);
 		}).build();
 	}
 

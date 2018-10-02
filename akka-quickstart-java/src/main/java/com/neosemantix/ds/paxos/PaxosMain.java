@@ -15,7 +15,7 @@ import akka.actor.ActorSystem;
  */
 public class PaxosMain {
 	
-	private static int numParticipants = 3;
+	private static int numParticipants = 4;
 	private static List<ActorRef> participants;
 	
 	private static Object gc;

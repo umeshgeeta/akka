@@ -1,7 +1,9 @@
-/**
- * 
- */
 package com.neosemantix.ds.paxos;
+
+/**
+ * @author umeshpatil
+ *
+ */
 
 import java.util.ArrayList;
 import java.util.List;
@@ -15,21 +17,23 @@ import akka.actor.ActorSystem;
  */
 public class PaxosMain {
 	
-	private static int numParticipants = 4;
+	
 	private static List<ActorRef> participants;
 	
+	
 	private static Object gc;
+	
 
 	/**
 	 * @param args
 	 */
 	public static void main(String[] args) {
 		gc = new Object();
+		Config cfg = Config.getInstance();
 		final ActorSystem system = ActorSystem.create("Paxos");
 		participants = new ArrayList<ActorRef>();
-		for (int i=0; i<numParticipants; i++) {
-			participants.add(system.actorOf(Participant.props(numParticipants, "Participant_" + i)));
-			
+		for (int i=0; i< cfg.numParticipants; i++) {
+			participants.add(system.actorOf(Participant.props(cfg.numParticipants, "Participant_" + i)));
 		}
 	}
 	

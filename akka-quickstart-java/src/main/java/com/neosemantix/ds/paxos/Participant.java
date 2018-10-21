@@ -5,6 +5,7 @@ package com.neosemantix.ds.paxos;
 
 import java.time.Duration;
 import java.util.List;
+import java.util.Optional;
 import java.util.Random;
 
 //import akka.actor.AbstractActor;
@@ -23,7 +24,9 @@ public class Participant extends AbstractActorWithTimers {
 	private static int NO_PROPOSAL_ACCEPTED_YET = -1;
 	private static int PROPOSAL_VALUE_NOT_APPLICABLE = -1;
 
-	private LoggingAdapter log = Logging.getLogger(getContext().getSystem(), this);
+	private LoggingAdapter msgLog = Logging.getLogger(getContext().getSystem(), this);
+	
+	private static Config cfg = Config.getInstance();
 
 	static public Props props(int pCount, String name) {
 		return Props.create(Participant.class, () -> new Participant(pCount, name));
@@ -55,6 +58,8 @@ public class Participant extends AbstractActorWithTimers {
 		private int valueOfHighestProposalReceived;
 		private Participant parent;
 		private long birthdate;
+		private long lastPrepareRequest;
+		private int prepReqIssuedSoFar;
 		private boolean acceptReqAlreadySent;		
 
 		private CirculatedProposal(ProposalNumberGenerator propNumGen, int pc, Participant p, long bd) {
@@ -72,8 +77,17 @@ public class Participant extends AbstractActorWithTimers {
 			issuedPrepareRequestNumber = propNumGenarator.getNextProposalNumber();
 			acceptReqAlreadySent = false;	//reset
 			Protocol.PrepareRequest prepReq = new Protocol.PrepareRequest(issuedPrepareRequestNumber);
-			issuer.issueRequests(prepReq);
+			lastPrepareRequest = issuer.issueRequests(prepReq);
+			prepReqIssuedSoFar++;
 			return issuedPrepareRequestNumber;
+		}
+		
+		private long lastPrepareRequest() {
+			return lastPrepareRequest;
+		}
+		
+		private int prepReqIssuedSoFar() {
+			return this.prepReqIssuedSoFar;
 		}
 
 		private synchronized void trackPrepareResponse(int highestPropNo, int propVal) {
@@ -139,6 +153,8 @@ public class Participant extends AbstractActorWithTimers {
 		private void circulateAcceptProposal(Participant issuer) {
 			if (valueOfHighestProposalReceived == 0) {
 				valueOfHighestProposalReceived  = 5;
+			} else {
+				valueOfHighestProposalReceived += 5;
 			}
 			Protocol.AcceptRequest acptReq = new Protocol.AcceptRequest(issuedPrepareRequestNumber,
 					valueOfHighestProposalReceived);
@@ -152,12 +168,18 @@ public class Participant extends AbstractActorWithTimers {
 			// when acceptResponsesReceived == number of participants; consensus is reached
 			// participantCount - 1 because we skip message to self
 			if (acceptResponsesReceived == (participantCount - 1)) {				
-				System.out.println("==========================================================");
-				System.out.println("Consensus reached in "+ (System.currentTimeMillis() - birthdate)  + " milliseonds for proposal from " + parent + "  highestProposalNoOfResponsesReceived: "  + 
+				String line = "==========================================================";
+				outToAllLoggers(line);
+				outToAllLoggers("Consensus reached in "+ (System.currentTimeMillis() - birthdate)  + " milliseonds for proposal from " + parent + "  highestProposalNoOfResponsesReceived: "  + 
 							highestProposalNoOfResponsesReceived + " valueOfHighestProposalReceived: " + valueOfHighestProposalReceived);
-				System.out.println("==========================================================");
+				outToAllLoggers(line);
 				PaxosMain.consensusReached();
 			}
+		}
+		
+		private void outToAllLoggers(String msg) {
+			System.out.println(msg);
+			parent.msgLog.info(msg);
 		}
 
 	}
@@ -203,8 +225,19 @@ public class Participant extends AbstractActorWithTimers {
 		random = new Random();
 		getTimers().startSingleTimer(TICK_KEY, new FirstTick(), Duration.ofMillis(((1+random.nextInt(9)) * 100)));
 		this.name = n;
-		log.info("Created " +  this + " with ActorRef as " + this.getSelf());
+		msgLog.debug("Created " +  this + " with ActorRef as " + this.getSelf());
 	}
+	
+	  @Override
+	  public void preStart() {
+	    msgLog.debug("Starting");
+	  }
+
+	  @Override
+	  public void preRestart(Throwable reason, Optional<Object> message) {
+	    msgLog.error(reason, "Restarting due to [{}] when processing [{}]",
+	      reason.getMessage(), message.isPresent() ? message.get() : "");
+	  }
 	
 	public String toString() {
 		return name;
@@ -249,10 +282,12 @@ public class Participant extends AbstractActorWithTimers {
 			propResponded.acceptedProposalValue = accpReq.proposalValue;
 			// propResponded.proposer = proposer;
 		}
+		// else it has responded to another Prepare Request which has number
+		// higher than this Accept Request proposal number.
 		return resp;
 	}
 
-	private synchronized void issueRequests(Protocol.Request req) {
+	private synchronized long issueRequests(Protocol.Request req) {
 		List<ActorRef> participants = PaxosMain.getParticipants();
 		if (participants != null && !participants.isEmpty()) {
 			for (ActorRef p : participants) {
@@ -262,40 +297,48 @@ public class Participant extends AbstractActorWithTimers {
 				// else skip messages to self
 			}
 		}
+		return System.currentTimeMillis();
 	}
 
 	@Override
 	public Receive createReceive() {
 		ActorRef ar = getSender();
 		return receiveBuilder().match(Protocol.PrepareRequest.class, prepReq -> {
-			log.info("       Received "+ prepReq + " by " + this + " from " + getSender());
+			msgLog.debug("       Received "+ prepReq + " by " + this + " from " + getSender());
 			Protocol.PrepareResponse resp = respond(prepReq);
 			if (resp != null) {
 				getSender().tell(resp, getSelf());
 			}
 			// else we do nothing
 		}).match(Protocol.AcceptRequest.class, accpReq -> {
-			log.info("       Received " + accpReq + " by " + this + " from " + getSender());
+			msgLog.debug("       Received " + accpReq + " by " + this + " from " + getSender());
 			Protocol.AcceptResponse resp = respond(accpReq, getSender());
 			if (resp != null) {
 				getSender().tell(resp, getSelf());
 			}
 			// else we do nothing
 		}).match(Protocol.PrepareResponse.class, prepResp -> {
-			log.info(">->->- Received " + prepResp + " by " + this + " from " + getSender());
+			msgLog.debug(">->->- Received " + prepResp + " by " + this + " from " + getSender());
 			propCirculated.trackPrepareResponse(prepResp.lastAcceptedProposal, prepResp.lastAcceptedProposalValue);
 		}).match(Protocol.AcceptResponse.class, accpResp -> {
-			log.info(">>->>- Received " + accpResp + " by "  + this + " from " + getSender());
+			msgLog.debug(">>->>- Received " + accpResp + " by "  + this + " from " + getSender());
 			propCirculated.trackAcceptResponse();
 		}).match(FirstTick.class, message -> {
-			log.info("Circulating prepare request by " + this);
+			msgLog.debug("Circulating prepare request by " + this);
 			// do something useful here
 			propCirculated.circulateNewPrepareProposal(this);
 			getTimers().startPeriodicTimer(TICK_KEY, new Tick(), Duration.ofSeconds(1));
 		}).match(Tick.class, message -> {
-			log.debug("Circulating prepare request by " + this);
-			// do something useful here - hold on for now from initiating multiple proposals by the same participant
-			//propCirculated.circulateNewPrepareProposal(this);
+			long lastReq = propCirculated.lastPrepareRequest();
+			long howMuchToWait = cfg.waitBeforeNextRequest; 
+			if (howMuchToWait > 0 && (lastReq < System.currentTimeMillis() - howMuchToWait)) {
+				// Last prepare request by this Participant was way back, 
+				// consensus should have been established by now. So trt=y new proposal afresh.
+				msgLog.debug("Circulating new prepare request (" + propCirculated.prepReqIssuedSoFar() + ") by " + this);
+				// do something useful here - hold on for now from initiating multiple proposals by the same participant
+				propCirculated.circulateNewPrepareProposal(this);
+			}
+			// else we need to give time for current requests to make progress
 		}).build();
 	}
 

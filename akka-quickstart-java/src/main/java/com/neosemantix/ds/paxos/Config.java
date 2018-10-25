@@ -1,8 +1,16 @@
 package com.neosemantix.ds.paxos;
 
 /**
+ * This class defines configuration items like number of participants to be
+ * considered in a single consensus simulation. It also has another parameter
+ * about whether participants should make multiple Prepare Requests and if so
+ * then at what interval. In general, various inputs parameters to run a 
+ * particular simulation exercise, or a set of simulations; should be defined
+ * in this class.
+ * 
+ * The class implements Singleton design pattern.
+ * 
  * @author umeshpatil
- *
  */
 public class Config {
 

@@ -1,11 +1,12 @@
-/**
- * 
- */
 package com.neosemantix.ds.paxos;
 
 /**
+ * Basic communication protocol followed by participants of this simulation.
+ * It defines various request and response objects used by participants to
+ * communicate with other participants. In other words, these are the objects
+ * which are used by participants to send each other using the Akka framework.
+ * 
  * @author umeshpatil
- *
  */
 public class Protocol {
 	

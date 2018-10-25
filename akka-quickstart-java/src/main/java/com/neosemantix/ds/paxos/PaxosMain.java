@@ -1,10 +1,5 @@
 package com.neosemantix.ds.paxos;
 
-/**
- * @author umeshpatil
- *
- */
-
 import java.util.ArrayList;
 import java.util.List;
 
@@ -12,6 +7,8 @@ import akka.actor.ActorRef;
 import akka.actor.ActorSystem;
 
 /**
+ * Main driver class which contains main to start the simulation.
+ * 
  * @author umeshpatil
  *
  */
@@ -25,7 +22,8 @@ public class PaxosMain {
 	
 
 	/**
-	 * @param args
+	 * @param args Right now command line arguments are ignored since inputs
+	 * 				are sourced from Config class.
 	 */
 	public static void main(String[] args) {
 		gc = new Object();

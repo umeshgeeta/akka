@@ -1,4 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
+
+<!-- This is a configuration file SLF4J logger settings, 
+in this case logs written to a log file. -->
+
 <configuration>
 
 	<appender name="FILE" class="ch.qos.logback.core.FileAppender">

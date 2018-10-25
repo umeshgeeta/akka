@@ -1,0 +1,20 @@
+This blog post describes a simple implementation of Paxos Consensus Algorithm
+using Akka (Java) Framework. Objective of this exercise is educational, to learn
+more about one of the foundational algorithms of distributed systems as well as
+to know more about Actor based message responding asynchronous framework like
+Akka.
+
+Problem Statement
+Assume that there are some number of participants. These participants can talk
+to each other and to build a consensus about among themselves without anyone 
+outside the group dictating or controlling the information shared. Participants
+communicate with each other via a fixed protocol - a set of wellknown requests
+and responses.
+
+Typically these participants corresponds to autonomous processes which 
+communicate with each over a network; hence it is a distributed system.
+
+The goal of the programming exercise undertaken here is to model these participants,
+model the communication among these participants, introduce artificial delays
+in responses by participants (because these are autonomous players in real life
+with their own latencies) and then to simulate how the algorithm plays out.

@@ -33,7 +33,7 @@ import java.util.Set;
  * 				substring on the original string and has critical equals method
  * 				which comes into the picture at the time adding to the list.
  * 
- * Problem source: Hackerrank, medium difficulty, 50 point worth.
+ * Problem source: Hackerrank, medium difficulty, 50 points worth!
  * 
  * 				https://www.hackerrank.com/challenges/sherlock-and-anagrams/problem
  * 

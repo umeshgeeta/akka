@@ -117,16 +117,13 @@ public class Participant extends AbstractActorWithTimers {
 				}
 				// else already accept request is in circulation...
 				// What happens is we get responses from majority participants for prepare
-				// request
-				// and this this participant starts issuing the accept request. However,
-				// responses
-				// for the earlier prepare request still keeps on coming from participants
-				// beyond
-				// the majority. At that point we do not want to issue additional acceptance
-				// request
-				// since one is already in circulation for this prepare request. Point is we do
-				// not for the accept request to get responses to prepare request from all
-				// participants. But beyond what prepare responses are received, need not cause
+				// request and this this participant starts issuing the accept request. 
+				// However, responses for the earlier prepare request still keeps on 
+				// coming from participants beyond the majority. At that point we do not 
+				// want to issue additional acceptance request since one is already in 
+				// circulation for this prepare request. Point is we do not for the accept
+				// request to get responses to prepare request from all participants. 
+				// But beyond what prepare responses are received, need not cause
 				// additional accept request.
 			}
 			// else will have to wait for more responses
@@ -323,7 +320,9 @@ public class Participant extends AbstractActorWithTimers {
 		return System.currentTimeMillis();
 	}
 
-	/* (non-Javadoc)
+	/*
+	 * (non-Javadoc)
+	 * 
 	 * @see akka.actor.AbstractActor#createReceive()
 	 */
 	@Override

@@ -22,6 +22,7 @@ public class PaxosMain {
 	
 
 	/**
+	 * 
 	 * @param args Right now command line arguments are ignored since inputs
 	 * 				are sourced from Config class.
 	 */

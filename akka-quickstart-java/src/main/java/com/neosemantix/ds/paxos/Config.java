@@ -14,7 +14,7 @@ package com.neosemantix.ds.paxos;
  */
 public class Config {
 
-	public int numParticipants = 25;
+	public int numParticipants = 11;
 	
 	/**
 	 * When it is less than 0, say -1, a participant will issue only one Prepare Request. 
@@ -22,7 +22,7 @@ public class Config {
 	 * Request after 5 seconds. In other words, this value represents time a participant
 	 * would wait in milliseconds before the next Prepare Request is to be issued.
 	 */
-	public long waitBeforeNextRequest = 500;
+	public long waitBeforeNextRequest = 25;
 
 	private Config() {
 	}

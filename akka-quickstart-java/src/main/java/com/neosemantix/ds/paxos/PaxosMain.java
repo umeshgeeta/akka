@@ -9,6 +9,17 @@ import akka.actor.ActorSystem;
 /**
  * Main driver class which contains main to start the simulation.
  * 
+ * Typically for Paxos implementation, there are 3 roles / types of actors:
+ * - Proposer (the one who proposes a new proposal, subsequently with a value)
+ * - Acceptor (the one who accesses proposals and accepts one or more)
+ * - Learner (the who does not essentially participates in the process, but
+ * 			learns about the final value which majority of Acceptors accept.)
+ * 
+ * In the current implementation, we are not going with any fixed subset of
+ * distinguished Proposer or Learners. All are Proposers and Acceptors.
+ * In other words, each Participant can propose and we need half of the 
+ * participants - acceptors - to accept at least one proposal.
+ * 
  * @author umeshpatil
  *
  */
